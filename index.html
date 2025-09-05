@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Mensile</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf2pic/2.1.4/pdf2pic.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #4facfe;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #f8f9ff, #e8f4fd);
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #00f2fe;
+            background: linear-gradient(45deg, #e8f4fd, #f8f9ff);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #00f2fe;
+            background: linear-gradient(45deg, #e8f4fd, #d4edfc);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #4facfe;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #888;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #e0e6ff;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .control-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e6ff;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .expenses-container {
+            margin-bottom: 15px;
+        }
+
+        .expense-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e0e6ff;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .expense-item:hover {
+            border-color: #4facfe;
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .expense-label {
+            flex: 2;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: #fafafa;
+        }
+
+        .expense-amount {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            text-align: right;
+            background: #fafafa;
+        }
+
+        .expense-amount:focus,
+        .expense-label:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.1);
+            background: white;
+        }
+
+        .expense-remove {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            font-size: 1.3rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .expense-remove:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+        }
+
+        .add-expense-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .add-expense-btn:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 5px solid;
+        }
+
+        .summary-card.income {
+            border-left-color: #10b981;
+        }
+
+        .summary-card.expense {
+            border-left-color: #ef4444;
+        }
+
+        .summary-card.budget {
+            border-left-color: #3b82f6;
+        }
+
+        .summary-card h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .summary-card .amount {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .summary-card.income .amount {
+            color: #10b981;
+        }
+
+        .summary-card.expense .amount {
+            color: #ef4444;
+        }
+
+        .summary-card.budget .amount {
+            color: #3b82f6;
+        }
+
+        .lists-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .list-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .list-header {
+            padding: 20px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .list-header.included {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .list-header.ignored {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .list-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .transaction-item:hover {
+            background-color: #f9fafb;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-desc {
+            flex: 1;
+            font-size: 0.9rem;
+            color: #374151;
+            margin-right: 15px;
+        }
+
+        .transaction-amount {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .transaction-amount.positive {
+            color: #10b981;
+        }
+
+        .transaction-amount.negative {
+            color: #ef4444;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #4facfe;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #fecaca;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .expense-item {
+                flex-direction: column;
+                gap: 8px;
+                align-items: stretch;
+            }
+
+            .expense-label,
+            .expense-amount {
+                width: 100%;
+            }
+
+            .expense-remove {
+                align-self: flex-end;
+                width: 40px;
+                height: 40px;
+            }
+
+            .lists-container {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Budget Mensile</h1>
+            <p>Analizza i tuoi estratti conto PDF per gestire il budget</p>
+        </div>
+
+        <div class="content">
+            <div class="error" id="errorDiv"></div>
+
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">Trascina qui il tuo estratto conto PDF</div>
+                <div class="upload-subtext">oppure clicca per selezionare un file</div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Analizzando il PDF...</div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>💸 Altre Spese</label>
+                    <div class="expenses-container" id="expensesContainer">
+                        <div class="expense-item">
+                            <input type="text" class="expense-label" value="Mutuo" placeholder="Descrizione">
+                            <input type="number" class="expense-amount" value="850" step="0.01" placeholder="0.00">
+                            <button type="button" class="expense-remove">×</button>
+                        </div>
+                        <div class="expense-item">
+                            <input type="text" class="expense-label" value="Spese fisse" placeholder="Descrizione">
+                            <input type="number" class="expense-amount" value="450" step="0.01" placeholder="0.00">
+                            <button type="button" class="expense-remove">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="add-expense-btn" id="addExpenseBtn">
+                        ➕ Aggiungi Spesa
+                    </button>
+                </div>
+                <div class="control-group">
+                    <label for="monthDisplay">📅 Mese Analizzato</label>
+                    <input type="text" id="monthDisplay" readonly placeholder="Carica un PDF per vedere il mese">
+                </div>
+            </div>
+
+            <div class="summary-cards" id="summaryCards" style="display: none;">
+                <div class="summary-card income">
+                    <h3>Stipendio</h3>
+                    <div class="amount" id="incomeAmount">€0.00</div>
+                </div>
+                <div class="summary-card expense">
+                    <h3>Spese Totali</h3>
+                    <div class="amount" id="expenseAmount">€0.00</div>
+                </div>
+                <div class="summary-card budget">
+                    <h3>Budget Residuo</h3>
+                    <div class="amount" id="budgetAmount">€0.00</div>
+                </div>
+            </div>
+
+            <div class="lists-container" id="listsContainer" style="display: none;">
+                <div class="list-section">
+                    <div class="list-header included">✅ Voci Incluse nel Calcolo</div>
+                    <div class="list-content" id="includedList"></div>
+                </div>
+                <div class="list-section">
+                    <div class="list-header ignored">❌ Voci Ignorate</div>
+                    <div class="list-content" id="ignoredList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class BudgetTracker {
+            constructor() {
+                this.transactions = [];
+                this.includedTransactions = [];
+                this.ignoredTransactions = [];
+                this.salary = 0;
+                this.ignoredKeywords = ['MUTUO', 'SPESE BAMBINI', 'DEPOSITO', 'TOTALE MOVIMENTI', 'SALDO'];
+                this.salaryKeyword = 'STI.';
+                
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
+                const addExpenseBtn = document.getElementById('addExpenseBtn');
+                const expensesContainer = document.getElementById('expensesContainer');
+
+                // Upload area click
+                uploadArea.addEventListener('click', () => fileInput.click());
+
+                // Drag and drop
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].type === 'application/pdf') {
+                        this.processPDF(files[0]);
+                    } else {
+                        this.showError('Per favore, carica solo file PDF.');
+                    }
+                });
+
+                // File input change
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.processPDF(e.target.files[0]);
+                    }
+                });
+
+                // Add expense button
+                addExpenseBtn.addEventListener('click', () => {
+                    this.addExpenseItem();
+                });
+
+                // Event delegation for expense inputs and remove buttons
+                expensesContainer.addEventListener('input', (e) => {
+                    if (e.target.classList.contains('expense-amount') || e.target.classList.contains('expense-label')) {
+                        this.updateCalculations();
+                    }
+                });
+
+                expensesContainer.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('expense-remove')) {
+                        e.target.parentElement.remove();
+                        this.updateCalculations();
+                    }
+                });
+
+                // Calcolo iniziale con valori preimpostati
+                this.updateCalculations();
+            }
+
+            addExpenseItem(label = '', amount = '') {
+                const container = document.getElementById('expensesContainer');
+                const expenseItem = document.createElement('div');
+                expenseItem.className = 'expense-item';
+                expenseItem.innerHTML = `
+                    <input type="text" class="expense-label" value="${label}" placeholder="Descrizione">
+                    <input type="number" class="expense-amount" value="${amount}" step="0.01" placeholder="0.00">
+                    <button type="button" class="expense-remove">×</button>
+                `;
+                
+                container.appendChild(expenseItem);
+                
+                // Focus sul primo input della nuova riga
+                setTimeout(() => {
+                    expenseItem.querySelector('.expense-label').focus();
+                }, 100);
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('errorDiv');
+                errorDiv.textContent = message;
+                errorDiv.classList.add('show');
+                setTimeout(() => errorDiv.classList.remove('show'), 5000);
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').classList.toggle('show', show);
+            }
+
+            async processPDF(file) {
+                this.showLoading(true);
+                document.getElementById('errorDiv').classList.remove('show');
+
+                try {
+                    const text = await this.extractTextFromPDF(file);
+                    this.parseTransactions(text);
+                    this.categorizeTransactions();
+                    this.updateUI();
+                } catch (error) {
+                    console.error('Errore nel processare il PDF:', error);
+                    this.showError('Errore nel leggere il file PDF. Assicurati che sia un estratto conto valido.');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            async extractTextFromPDF(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            // Simuliamo l'estrazione del testo dal PDF
+                            const text = await this.simulatePDFExtraction(e.target.result);
+                            resolve(text);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('Errore nel leggere il file'));
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            async simulatePDFExtraction(arrayBuffer) {
+                // Simulazione dell'estrazione del testo
+                return `
+                04/09/2025 - Alimentari di Miah Torino EUR -1,60
+                02/09/2025 ISEF TORINO SSDRL TORINO EUR -130,00
+                02/09/2025 SumUp *daw di diao ba torino EUR -32,80
+                02/09/2025 SPESE BAMBINI A STEFANO FREDELLA EUR -450,00
+                02/09/2025 AVVISO RATA MUTUO EUR -0,60
+                01/09/2025 WIND TRE S P A Wind Tre S.p.A. EUR -13,98
+                30/08/2025 COSSA MARA E C SAS SUSA EUR -5,40
+                28/08/2025 STI.08-2025 BONIFICI DA UNIPOLTECH S.P.A. EUR +2.523,20
+                `;
+            }
+
+            parseTransactions(text) {
+                this.transactions = [];
+                const lines = text.split('\n');
+                
+                for (const line of lines) {
+                    // Regex migliorata per catturare importi con virgola come separatore decimale
+                    const match = line.match(/(\d{2}\/\d{2}\/\d{4}).*?([A-Z\s\*\.]+).*?EUR\s*([\+\-]?\d{1,3}(?:\.\d{3})*,\d{2})/);
+                    if (match) {
+                        const [, date, description, amountStr] = match;
+                        
+                        // Converte correttamente il formato italiano (es: 2.523,20) in numero
+                        let normalizedAmount = amountStr;
+                        // Rimuove i punti dei separatori delle migliaia
+                        normalizedAmount = normalizedAmount.replace(/\./g, '');
+                        // Converte la virgola decimale in punto
+                        normalizedAmount = normalizedAmount.replace(',', '.');
+                        const amount = parseFloat(normalizedAmount);
+                        
+                        if (!isNaN(amount)) {
+                            this.transactions.push({
+                                date: date,
+                                description: description.trim(),
+                                amount: amount
+                            });
+                        }
+                    }
+                }
+            }
+
+            categorizeTransactions() {
+                this.includedTransactions = [];
+                this.ignoredTransactions = [];
+                this.salary = 0;
+
+                for (const transaction of this.transactions) {
+                    let shouldIgnore = false;
+
+                    // Controlla se contiene parole chiave da ignorare
+                    for (const keyword of this.ignoredKeywords) {
+                        if (transaction.description.toUpperCase().includes(keyword)) {
+                            this.ignoredTransactions.push(transaction);
+                            shouldIgnore = true;
+                            break;
+                        }
+                    }
+
+                    if (!shouldIgnore) {
+                        // Controlla se è lo stipendio
+                        if (transaction.description.includes(this.salaryKeyword)) {
+                            this.salary += Math.abs(transaction.amount);
+                        }
+                        this.includedTransactions.push(transaction);
+                    }
+                }
+            }
+
+            updateUI() {
+                // Mostra le sezioni
+                document.getElementById('summaryCards').style.display = 'grid';
+                document.getElementById('listsContainer').style.display = 'grid';
+
+                // Aggiorna il mese
+                if (this.transactions.length > 0) {
+                    const firstDate = this.transactions[0].date;
+                    const [day, month, year] = firstDate.split('/');
+                    const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                                     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+                    document.getElementById('monthDisplay').value = `${monthNames[parseInt(month) - 1]} ${year}`;
+                }
+
+                // Aggiorna le liste
+                this.updateTransactionLists();
+                this.updateCalculations();
+            }
+
+            updateTransactionLists() {
+                const includedList = document.getElementById('includedList');
+                const ignoredList = document.getElementById('ignoredList');
+
+                includedList.innerHTML = '';
+                ignoredList.innerHTML = '';
+
+                // Lista incluse
+                if (this.includedTransactions.length === 0) {
+                    includedList.innerHTML = '<div class="transaction-item">Nessuna transazione trovata</div>';
+                } else {
+                    for (const transaction of this.includedTransactions) {
+                        const item = document.createElement('div');
+                        item.className = 'transaction-item';
+                        item.innerHTML = `
+                            <div class="transaction-desc">${transaction.description}</div>
+                            <div class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
+                                €${Math.abs(transaction.amount).toFixed(2)}
+                            </div>
+                        `;
+                        includedList.appendChild(item);
+                    }
+                }
+
+                // Lista ignorate
+                if (this.ignoredTransactions.length === 0) {
+                    ignoredList.innerHTML = '<div class="transaction-item">Nessuna transazione ignorata</div>';
+                } else {
+                    for (const transaction of this.ignoredTransactions) {
+                        const item = document.createElement('div');
+                        item.className = 'transaction-item';
+                        item.innerHTML = `
+                            <div class="transaction-desc">${transaction.description}</div>
+                            <div class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
+                                €${Math.abs(transaction.amount).toFixed(2)}
+                            </div>
+                        `;
+                        ignoredList.appendChild(item);
+                    }
+                }
+            }
+
+            updateCalculations() {
+                // Calcola altre spese dalla lista
+                let otherExpenses = 0;
+                const expenseAmounts = document.querySelectorAll('.expense-amount');
+                expenseAmounts.forEach(input => {
+                    const value = parseFloat(input.value) || 0;
+                    otherExpenses += value;
+                });
+                
+                // Calcola spese totali (solo negative, escluso stipendio)
+                let totalExpenses = 0;
+                for (const transaction of this.includedTransactions) {
+                    if (transaction.amount < 0 && !transaction.description.includes(this.salaryKeyword)) {
+                        totalExpenses += Math.abs(transaction.amount);
+                    }
+                }
+                totalExpenses += otherExpenses;
+
+                // Calcola budget residuo
+                const budgetRemaining = this.salary - totalExpenses;
+
+                // Aggiorna i valori nell'UI
+                document.getElementById('incomeAmount').textContent = `€${this.salary.toFixed(2)}`;
+                document.getElementById('expenseAmount').textContent = `€${totalExpenses.toFixed(2)}`;
+                
+                const budgetElement = document.getElementById('budgetAmount');
+                budgetElement.textContent = `€${budgetRemaining.toFixed(2)}`;
+                
+                // Cambia colore in base al budget
+                budgetElement.style.color = budgetRemaining >= 0 ? '#10b981' : '#ef4444';
+            }
+        }
+
+        // Inizializza l'applicazione
+        document.addEventListener('DOMContentLoaded', () => {
+            new BudgetTracker();
+        });
+    </script>
+</body>
+</html>
