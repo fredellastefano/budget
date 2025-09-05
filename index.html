@@ -509,311 +509,265 @@
         </div>
     </div>
 
-    <script>
-        class BudgetTracker {
-            constructor() {
-                this.transactions = [];
-                this.includedTransactions = [];
-                this.ignoredTransactions = [];
-                this.salary = 0;
-                this.ignoredKeywords = ['MUTUO', 'SPESE BAMBINI', 'DEPOSITO', 'TOTALE MOVIMENTI', 'SALDO'];
-                this.salaryKeyword = 'STI.';
-                
-                this.initializeEventListeners();
-            }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    class BudgetTracker {
+        constructor() {
+            this.transactions = [];
+            this.includedTransactions = [];
+            this.ignoredTransactions = [];
+            this.salary = 0;
+            this.ignoredKeywords = ['MUTUO', 'SPESE BAMBINI', 'DEPOSITO', 'TOTALE MOVIMENTI', 'SALDO'];
+            this.salaryKeyword = 'STI.';
+            
+            this.initializeEventListeners();
+        }
 
-            initializeEventListeners() {
-                const uploadArea = document.getElementById('uploadArea');
-                const fileInput = document.getElementById('fileInput');
-                const addExpenseBtn = document.getElementById('addExpenseBtn');
-                const expensesContainer = document.getElementById('expensesContainer');
+        initializeEventListeners() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const addExpenseBtn = document.getElementById('addExpenseBtn');
+            const expensesContainer = document.getElementById('expensesContainer');
 
-                // Upload area click
-                uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('click', () => fileInput.click());
 
-                // Drag and drop
-                uploadArea.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.add('dragover');
-                });
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
 
-                uploadArea.addEventListener('dragleave', () => {
-                    uploadArea.classList.remove('dragover');
-                });
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
 
-                uploadArea.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0 && files[0].type === 'application/pdf') {
-                        this.processPDF(files[0]);
-                    } else {
-                        this.showError('Per favore, carica solo file PDF.');
-                    }
-                });
-
-                // File input change
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        this.processPDF(e.target.files[0]);
-                    }
-                });
-
-                // Add expense button
-                addExpenseBtn.addEventListener('click', () => {
-                    this.addExpenseItem();
-                });
-
-                // Event delegation for expense inputs and remove buttons
-                expensesContainer.addEventListener('input', (e) => {
-                    if (e.target.classList.contains('expense-amount') || e.target.classList.contains('expense-label')) {
-                        this.updateCalculations();
-                    }
-                });
-
-                expensesContainer.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('expense-remove')) {
-                        e.target.parentElement.remove();
-                        this.updateCalculations();
-                    }
-                });
-
-                // Calcolo iniziale con valori preimpostati
-                this.updateCalculations();
-            }
-
-            addExpenseItem(label = '', amount = '') {
-                const container = document.getElementById('expensesContainer');
-                const expenseItem = document.createElement('div');
-                expenseItem.className = 'expense-item';
-                expenseItem.innerHTML = `
-                    <input type="text" class="expense-label" value="${label}" placeholder="Descrizione">
-                    <input type="number" class="expense-amount" value="${amount}" step="0.01" placeholder="0.00">
-                    <button type="button" class="expense-remove">×</button>
-                `;
-                
-                container.appendChild(expenseItem);
-                
-                // Focus sul primo input della nuova riga
-                setTimeout(() => {
-                    expenseItem.querySelector('.expense-label').focus();
-                }, 100);
-            }
-
-            showError(message) {
-                const errorDiv = document.getElementById('errorDiv');
-                errorDiv.textContent = message;
-                errorDiv.classList.add('show');
-                setTimeout(() => errorDiv.classList.remove('show'), 5000);
-            }
-
-            showLoading(show) {
-                document.getElementById('loading').classList.toggle('show', show);
-            }
-
-            async processPDF(file) {
-                this.showLoading(true);
-                document.getElementById('errorDiv').classList.remove('show');
-
-                try {
-                    const text = await this.extractTextFromPDF(file);
-                    this.parseTransactions(text);
-                    this.categorizeTransactions();
-                    this.updateUI();
-                } catch (error) {
-                    console.error('Errore nel processare il PDF:', error);
-                    this.showError('Errore nel leggere il file PDF. Assicurati che sia un estratto conto valido.');
-                } finally {
-                    this.showLoading(false);
-                }
-            }
-
-            async extractTextFromPDF(file) {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        try {
-                            // Simuliamo l'estrazione del testo dal PDF
-                            const text = await this.simulatePDFExtraction(e.target.result);
-                            resolve(text);
-                        } catch (error) {
-                            reject(error);
-                        }
-                    };
-                    reader.onerror = () => reject(new Error('Errore nel leggere il file'));
-                    reader.readAsArrayBuffer(file);
-                });
-            }
-
-            async simulatePDFExtraction(arrayBuffer) {
-                // Simulazione dell'estrazione del testo
-                return `
-                04/09/2025 - Alimentari di Miah Torino EUR -1,60
-                02/09/2025 ISEF TORINO SSDRL TORINO EUR -130,00
-                02/09/2025 SumUp *daw di diao ba torino EUR -32,80
-                02/09/2025 SPESE BAMBINI A STEFANO FREDELLA EUR -450,00
-                02/09/2025 AVVISO RATA MUTUO EUR -0,60
-                01/09/2025 WIND TRE S P A Wind Tre S.p.A. EUR -13,98
-                30/08/2025 COSSA MARA E C SAS SUSA EUR -5,40
-                28/08/2025 STI.08-2025 BONIFICI DA UNIPOLTECH S.P.A. EUR +3.000,00
-                `;
-            }
-
-            parseTransactions(text) {
-                this.transactions = [];
-                const lines = text.split('\n');
-                
-                for (const line of lines) {
-                    // Regex migliorata per catturare importi con virgola come separatore decimale
-                    const match = line.match(/(\d{2}\/\d{2}\/\d{4}).*?([A-Z\s\*\.]+).*?EUR\s*([\+\-]?\d{1,3}(?:\.\d{3})*,\d{2})/);
-                    if (match) {
-                        const [, date, description, amountStr] = match;
-                        
-                        // Converte correttamente il formato italiano (es: 2.523,20) in numero
-                        let normalizedAmount = amountStr;
-                        // Rimuove i punti dei separatori delle migliaia
-                        normalizedAmount = normalizedAmount.replace(/\./g, '');
-                        // Converte la virgola decimale in punto
-                        normalizedAmount = normalizedAmount.replace(',', '.');
-                        const amount = parseFloat(normalizedAmount);
-                        
-                        if (!isNaN(amount)) {
-                            this.transactions.push({
-                                date: date,
-                                description: description.trim(),
-                                amount: amount
-                            });
-                        }
-                    }
-                }
-            }
-
-            categorizeTransactions() {
-                this.includedTransactions = [];
-                this.ignoredTransactions = [];
-                this.salary = 0;
-
-                for (const transaction of this.transactions) {
-                    let shouldIgnore = false;
-
-                    // Controlla se contiene parole chiave da ignorare
-                    for (const keyword of this.ignoredKeywords) {
-                        if (transaction.description.toUpperCase().includes(keyword)) {
-                            this.ignoredTransactions.push(transaction);
-                            shouldIgnore = true;
-                            break;
-                        }
-                    }
-
-                    if (!shouldIgnore) {
-                        // Controlla se è lo stipendio
-                        if (transaction.description.includes(this.salaryKeyword)) {
-                            this.salary += Math.abs(transaction.amount);
-                        }
-                        this.includedTransactions.push(transaction);
-                    }
-                }
-            }
-
-            updateUI() {
-                // Mostra le sezioni
-                document.getElementById('summaryCards').style.display = 'grid';
-                document.getElementById('listsContainer').style.display = 'grid';
-
-                // Aggiorna il mese
-                if (this.transactions.length > 0) {
-                    const firstDate = this.transactions[0].date;
-                    const [day, month, year] = firstDate.split('/');
-                    const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
-                                     'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-                    document.getElementById('monthDisplay').value = `${monthNames[parseInt(month) - 1]} ${year}`;
-                }
-
-                // Aggiorna le liste
-                this.updateTransactionLists();
-                this.updateCalculations();
-            }
-
-            updateTransactionLists() {
-                const includedList = document.getElementById('includedList');
-                const ignoredList = document.getElementById('ignoredList');
-
-                includedList.innerHTML = '';
-                ignoredList.innerHTML = '';
-
-                // Lista incluse
-                if (this.includedTransactions.length === 0) {
-                    includedList.innerHTML = '<div class="transaction-item">Nessuna transazione trovata</div>';
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'application/pdf') {
+                    this.processPDF(files[0]);
                 } else {
-                    for (const transaction of this.includedTransactions) {
-                        const item = document.createElement('div');
-                        item.className = 'transaction-item';
-                        item.innerHTML = `
-                            <div class="transaction-desc">${transaction.description}</div>
-                            <div class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
-                                €${Math.abs(transaction.amount).toFixed(2)}
-                            </div>
-                        `;
-                        includedList.appendChild(item);
-                    }
+                    this.showError('Per favore, carica solo file PDF.');
                 }
+            });
 
-                // Lista ignorate
-                if (this.ignoredTransactions.length === 0) {
-                    ignoredList.innerHTML = '<div class="transaction-item">Nessuna transazione ignorata</div>';
-                } else {
-                    for (const transaction of this.ignoredTransactions) {
-                        const item = document.createElement('div');
-                        item.className = 'transaction-item';
-                        item.innerHTML = `
-                            <div class="transaction-desc">${transaction.description}</div>
-                            <div class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
-                                €${Math.abs(transaction.amount).toFixed(2)}
-                            </div>
-                        `;
-                        ignoredList.appendChild(item);
-                    }
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.processPDF(e.target.files[0]);
                 }
-            }
+            });
 
-            updateCalculations() {
-                // Calcola altre spese dalla lista
-                let otherExpenses = 0;
-                const expenseAmounts = document.querySelectorAll('.expense-amount');
-                expenseAmounts.forEach(input => {
-                    const value = parseFloat(input.value) || 0;
-                    otherExpenses += value;
-                });
-                
-                // Calcola spese totali (solo negative, escluso stipendio)
-                let totalExpenses = 0;
-                for (const transaction of this.includedTransactions) {
-                    if (transaction.amount < 0 && !transaction.description.includes(this.salaryKeyword)) {
-                        totalExpenses += Math.abs(transaction.amount);
-                    }
+            addExpenseBtn.addEventListener('click', () => {
+                this.addExpenseItem();
+            });
+
+            expensesContainer.addEventListener('input', (e) => {
+                if (e.target.classList.contains('expense-amount') || e.target.classList.contains('expense-label')) {
+                    this.updateCalculations();
                 }
-                totalExpenses += otherExpenses;
+            });
 
-                // Calcola budget residuo
-                const budgetRemaining = this.salary - totalExpenses;
+            expensesContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('expense-remove')) {
+                    e.target.parentElement.remove();
+                    this.updateCalculations();
+                }
+            });
 
-                // Aggiorna i valori nell'UI
-                document.getElementById('incomeAmount').textContent = `€${this.salary.toFixed(2)}`;
-                document.getElementById('expenseAmount').textContent = `€${totalExpenses.toFixed(2)}`;
-                
-                const budgetElement = document.getElementById('budgetAmount');
-                budgetElement.textContent = `€${budgetRemaining.toFixed(2)}`;
-                
-                // Cambia colore in base al budget
-                budgetElement.style.color = budgetRemaining >= 0 ? '#10b981' : '#ef4444';
+            this.updateCalculations();
+        }
+
+        addExpenseItem(label = '', amount = '') {
+            const container = document.getElementById('expensesContainer');
+            const expenseItem = document.createElement('div');
+            expenseItem.className = 'expense-item';
+            expenseItem.innerHTML = `
+                <input type="text" class="expense-label" value="${label}" placeholder="Descrizione">
+                <input type="number" class="expense-amount" value="${amount}" step="0.01" placeholder="0.00">
+                <button type="button" class="expense-remove">×</button>
+            `;
+            
+            container.appendChild(expenseItem);
+            setTimeout(() => {
+                expenseItem.querySelector('.expense-label').focus();
+            }, 100);
+        }
+
+        showError(message) {
+            const errorDiv = document.getElementById('errorDiv');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        showLoading(show) {
+            document.getElementById('loading').classList.toggle('show', show);
+        }
+
+        async processPDF(file) {
+            this.showLoading(true);
+            document.getElementById('errorDiv').classList.remove('show');
+
+            try {
+                const text = await this.extractTextFromPDF(file);
+                this.parseTransactions(text);
+                this.categorizeTransactions();
+                this.updateUI();
+            } catch (error) {
+                console.error('Errore nel processare il PDF:', error);
+                this.showError('Errore nel leggere il file PDF. Assicurati che sia un estratto conto valido.');
+            } finally {
+                this.showLoading(false);
             }
         }
 
-        // Inizializza l'applicazione
-        document.addEventListener('DOMContentLoaded', () => {
-            new BudgetTracker();
-        });
-    </script>
-</body>
+        async extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-</html>
+            let textContent = '';
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const text = await page.getTextContent();
+                const pageText = text.items.map(item => item.str).join(' ');
+                textContent += pageText + '\n';
+            }
+            return textContent;
+        }
+
+		parseTransactions(text) {
+			this.transactions = [];
+
+			// Regex globale per catturare TUTTE le transazioni
+			const regex = /(\d{2}\/\d{2}\/\d{4}).*?(?:\d{2}\/\d{2}\/\d{4})?\s+(.+?)\s+EUR\s*([+-]?\d[\d.,]*)/g;
+			let match;
+
+			while ((match = regex.exec(text)) !== null) {
+				const [, date, description, amountStr] = match;
+
+				// Normalizzazione importo
+				let normalizedAmount = amountStr.replace(/\./g, '').replace(',', '.');
+				const amount = parseFloat(normalizedAmount);
+
+				if (!isNaN(amount)) {
+					this.transactions.push({
+						date: date,
+						description: description.trim(),
+						amount: amount
+					});
+				}
+			}
+		}
+
+
+        categorizeTransactions() {
+            this.includedTransactions = [];
+            this.ignoredTransactions = [];
+            this.salary = 0;
+
+            for (const transaction of this.transactions) {
+                let shouldIgnore = false;
+                for (const keyword of this.ignoredKeywords) {
+                    if (transaction.description.toUpperCase().includes(keyword)) {
+                        this.ignoredTransactions.push(transaction);
+                        shouldIgnore = true;
+                        break;
+                    }
+                }
+
+                if (!shouldIgnore) {
+                    if (transaction.description.includes(this.salaryKeyword)) {
+                        this.salary += Math.abs(transaction.amount);
+                    }
+                    this.includedTransactions.push(transaction);
+                }
+            }
+        }
+
+        updateUI() {
+            document.getElementById('summaryCards').style.display = 'grid';
+            document.getElementById('listsContainer').style.display = 'grid';
+
+            if (this.transactions.length > 0) {
+                const firstDate = this.transactions[0].date;
+                const [day, month, year] = firstDate.split('/');
+                const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                                    'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+                document.getElementById('monthDisplay').value = `${monthNames[parseInt(month) - 1]} ${year}`;
+            }
+
+            this.updateTransactionLists();
+            this.updateCalculations();
+        }
+
+        updateTransactionLists() {
+            const includedList = document.getElementById('includedList');
+            const ignoredList = document.getElementById('ignoredList');
+
+            includedList.innerHTML = '';
+            ignoredList.innerHTML = '';
+
+            if (this.includedTransactions.length === 0) {
+                includedList.innerHTML = '<div class="transaction-item">Nessuna transazione trovata</div>';
+            } else {
+                for (const transaction of this.includedTransactions) {
+                    const item = document.createElement('div');
+                    item.className = 'transaction-item';
+                    item.innerHTML = `
+                        <div class="transaction-desc">${transaction.description}</div>
+                        <div class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
+                            €${Math.abs(transaction.amount).toFixed(2)}
+                        </div>
+                    `;
+                    includedList.appendChild(item);
+                }
+            }
+
+            if (this.ignoredTransactions.length === 0) {
+                ignoredList.innerHTML = '<div class="transaction-item">Nessuna transazione ignorata</div>';
+            } else {
+                for (const transaction of this.ignoredTransactions) {
+                    const item = document.createElement('div');
+                    item.className = 'transaction-item';
+                    item.innerHTML = `
+                        <div class="transaction-desc">${transaction.description}</div>
+                        <div class="transaction-amount ${transaction.amount >= 0 ? 'positive' : 'negative'}">
+                            €${Math.abs(transaction.amount).toFixed(2)}
+                        </div>
+                    `;
+                    ignoredList.appendChild(item);
+                }
+            }
+        }
+
+        updateCalculations() {
+            let otherExpenses = 0;
+            const expenseAmounts = document.querySelectorAll('.expense-amount');
+            expenseAmounts.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                otherExpenses += value;
+            });
+            
+            let totalExpenses = 0;
+            for (const transaction of this.includedTransactions) {
+                if (transaction.amount < 0 && !transaction.description.includes(this.salaryKeyword)) {
+                    totalExpenses += Math.abs(transaction.amount);
+                }
+            }
+            totalExpenses += otherExpenses;
+
+            const budgetRemaining = this.salary - totalExpenses;
+
+            document.getElementById('incomeAmount').textContent = `€${this.salary.toFixed(2)}`;
+            document.getElementById('expenseAmount').textContent = `€${totalExpenses.toFixed(2)}`;
+            
+            const budgetElement = document.getElementById('budgetAmount');
+            budgetElement.textContent = `€${budgetRemaining.toFixed(2)}`;
+            budgetElement.style.color = budgetRemaining >= 0 ? '#10b981' : '#ef4444';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        new BudgetTracker();
+    });
+</script>
