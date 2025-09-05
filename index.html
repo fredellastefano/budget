@@ -463,12 +463,12 @@
                     <div class="expenses-container" id="expensesContainer">
                         <div class="expense-item">
                             <input type="text" class="expense-label" value="Mutuo" placeholder="Descrizione">
-                            <input type="number" class="expense-amount" value="850" step="1.00" placeholder="0.00">
+                            <input type="number" class="expense-amount" value="850" step="0.01" placeholder="0.00">
                             <button type="button" class="expense-remove">×</button>
                         </div>
                         <div class="expense-item">
                             <input type="text" class="expense-label" value="Spese fisse" placeholder="Descrizione">
-                            <input type="number" class="expense-amount" value="450" step="1.00" placeholder="0.00">
+                            <input type="number" class="expense-amount" value="450" step="0.01" placeholder="0.00">
                             <button type="button" class="expense-remove">×</button>
                         </div>
                     </div>
@@ -511,6 +511,8 @@
     </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
     class BudgetTracker {
         constructor() {
@@ -518,7 +520,7 @@
             this.includedTransactions = [];
             this.ignoredTransactions = [];
             this.salary = 0;
-            this.ignoredKeywords = ['MUTUO', 'SPESE BAMBINI', 'DEPOSITO', 'TOTALE MOVIMENTI', 'SALDO'];
+            this.ignoredKeywords = ['MUTUO', 'SPESE BAMBINI', 'DEPOSITO', 'TOTALE MOVIMENTI', 'SALDO', 'VISA CLASSIC'];
             this.salaryKeyword = 'STI.';
             
             this.initializeEventListeners();
@@ -575,6 +577,9 @@
                 }
             });
 
+            // Aggiunge la spesa CARTA DI CREDITO predefinita
+            this.addExpenseItem('CARTA DI CREDITO', 400);
+
             this.updateCalculations();
         }
 
@@ -584,7 +589,7 @@
             expenseItem.className = 'expense-item';
             expenseItem.innerHTML = `
                 <input type="text" class="expense-label" value="${label}" placeholder="Descrizione">
-                <input type="number" class="expense-amount" value="${amount}" step="1.00" placeholder="0.00">
+                <input type="number" class="expense-amount" value="${amount}" step="0.01" placeholder="0.00">
                 <button type="button" class="expense-remove">×</button>
             `;
             
@@ -636,30 +641,26 @@
             return textContent;
         }
 
-		parseTransactions(text) {
-			this.transactions = [];
+        parseTransactions(text) {
+            this.transactions = [];
 
-			// Regex globale per catturare TUTTE le transazioni
-			const regex = /(\d{2}\/\d{2}\/\d{4}).*?(?:\d{2}\/\d{2}\/\d{4})?\s+(.+?)\s+EUR\s*([+-]?\d[\d.,]*)/g;
-			let match;
+            const regex = /(\d{2}\/\d{2}\/\d{4})(?:\s+\d{2}\/\d{2}\/\d{4})?\s+(.+?)\s+EUR\s*([+-]?\d[\d.,]*)/g;
+            let match;
 
-			while ((match = regex.exec(text)) !== null) {
-				const [, date, description, amountStr] = match;
+            while ((match = regex.exec(text)) !== null) {
+                const [, date, description, amountStr] = match;
+                let normalizedAmount = amountStr.replace(/\./g, '').replace(',', '.');
+                const amount = parseFloat(normalizedAmount);
 
-				// Normalizzazione importo
-				let normalizedAmount = amountStr.replace(/\./g, '').replace(',', '.');
-				const amount = parseFloat(normalizedAmount);
-
-				if (!isNaN(amount)) {
-					this.transactions.push({
-						date: date,
-						description: description.trim(),
-						amount: amount
-					});
-				}
-			}
-		}
-
+                if (!isNaN(amount)) {
+                    this.transactions.push({
+                        date: date,
+                        description: description.trim(),
+                        amount: amount
+                    });
+                }
+            }
+        }
 
         categorizeTransactions() {
             this.includedTransactions = [];
@@ -763,7 +764,15 @@
             document.getElementById('expenseAmount').textContent = `€${totalExpenses.toFixed(2)}`;
             
             const budgetElement = document.getElementById('budgetAmount');
-            budgetElement.textContent = `€${budgetRemaining.toFixed(2)}`;
+
+            const today = new Date();
+            const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            const diffMs = lastDayOfMonth - today;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const weeks = Math.floor(diffDays / 7);
+            const days = diffDays % 7;
+
+            budgetElement.textContent = `€${budgetRemaining.toFixed(2)}  •  ${weeks} settimane ${days} giorni rimanenti`;
             budgetElement.style.color = budgetRemaining >= 0 ? '#10b981' : '#ef4444';
         }
     }
@@ -772,5 +781,3 @@
         new BudgetTracker();
     });
 </script>
-
-
