@@ -30,11 +30,104 @@
             overflow: hidden;
         }
 
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .login-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .login-form {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e6ff;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 172, 254, 0.3);
+        }
+
+        .login-error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #fecaca;
+            text-align: center;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
         .header {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -46,6 +139,27 @@
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
         }
 
         .content {
@@ -395,6 +509,10 @@
             display: block;
         }
 
+        .hidden {
+            display: none !important;
+        }
+
         @media (max-width: 768px) {
             .controls {
                 grid-template-columns: 1fr;
@@ -432,12 +550,46 @@
             .content {
                 padding: 20px;
             }
+
+            .logout-btn {
+                position: static;
+                margin: 10px auto 0;
+                display: block;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Screen -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-header">
+            <h1>🔐 Accesso</h1>
+            <p>Budget Mensile</p>
+        </div>
+        <div class="login-form">
+            <div class="login-error" id="loginError">
+                Credenziali non valide. Riprova.
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">👤 Nome utente</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">🔑 Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="login-btn">
+                    🚀 Accedi
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application (hidden by default) -->
+    <div class="container hidden" id="mainContainer">
         <div class="header">
+            <button class="logout-btn" id="logoutBtn">🚪 Esci</button>
             <h1>💰 Budget Mensile</h1>
             <p>Analizza i tuoi estratti conto PDF per gestire il budget</p>
         </div>
@@ -511,9 +663,135 @@
     </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+    class AuthManager {
+        constructor() {
+            this.credentials = {
+                username: 'fredella',
+                password: 'Stefano81'
+            };
+            this.sessionTimeout = 8 * 60 * 60 * 1000; // 8 ore
+            this.initializeAuth();
+        }
+
+        initializeAuth() {
+            this.checkSession();
+            this.initializeLoginForm();
+        }
+
+        checkSession() {
+            const sessionData = this.getSessionData();
+            if (sessionData && sessionData.timestamp && 
+                (Date.now() - sessionData.timestamp) < this.sessionTimeout) {
+                this.showMainApp();
+            } else {
+                this.clearSession();
+                this.showLogin();
+            }
+        }
+
+        initializeLoginForm() {
+            const loginForm = document.getElementById('loginForm');
+            const logoutBtn = document.getElementById('logoutBtn');
+
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+
+            // Focus automatico sul campo username
+            document.getElementById('username').focus();
+        }
+
+        handleLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const loginError = document.getElementById('loginError');
+
+            if (this.validateCredentials(username, password)) {
+                this.createSession(username);
+                this.showMainApp();
+                loginError.classList.remove('show');
+                this.clearLoginForm();
+            } else {
+                loginError.classList.add('show');
+                // Shake animation per l'errore
+                loginError.style.animation = 'none';
+                setTimeout(() => {
+                    loginError.style.animation = 'shake 0.5s ease-in-out';
+                }, 10);
+            }
+        }
+
+        handleLogout() {
+            this.clearSession();
+            this.showLogin();
+        }
+
+        validateCredentials(username, password) {
+            // Hash semplice per maggiore sicurezza (in produzione usare bcrypt o simili)
+            const hashedPassword = this.simpleHash(password);
+            const expectedHash = this.simpleHash(this.credentials.password);
+            
+            return username === this.credentials.username && hashedPassword === expectedHash;
+        }
+
+        simpleHash(str) {
+            let hash = 0;
+            if (str.length === 0) return hash;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return hash.toString();
+        }
+
+        createSession(username) {
+            const sessionData = {
+                username: username,
+                timestamp: Date.now(),
+                loginTime: new Date().toLocaleString('it-IT')
+            };
+            
+            // Salva la sessione in una variabile globale (non localStorage per sicurezza)
+            window.userSession = sessionData;
+        }
+
+        getSessionData() {
+            return window.userSession || null;
+        }
+
+        clearSession() {
+            delete window.userSession;
+        }
+
+        showLogin() {
+            document.getElementById('loginContainer').classList.remove('hidden');
+            document.getElementById('mainContainer').classList.add('hidden');
+            document.getElementById('username').focus();
+        }
+
+        showMainApp() {
+            document.getElementById('loginContainer').classList.add('hidden');
+            document.getElementById('mainContainer').classList.remove('hidden');
+            
+            // Inizializza il budget tracker se non è già stato fatto
+            if (!window.budgetTracker) {
+                window.budgetTracker = new BudgetTracker();
+            }
+        }
+
+        clearLoginForm() {
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+    }
+
     class BudgetTracker {
         constructor() {
             this.transactions = [];
@@ -777,7 +1055,21 @@
         }
     }
 
+    // Aggiunge stili CSS per l'animazione shake
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Inizializza l'app quando il DOM è caricato
     document.addEventListener('DOMContentLoaded', () => {
-        new BudgetTracker();
+        new AuthManager();
     });
 </script>
+</body>
+</html>
